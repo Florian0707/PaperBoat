@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    outputs:
+      build-name:
+        description: The name CMake gives this version
+        value: ${{ jobs.build-linux.outputs.build-name }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +24,8 @@ jobs:
     # Same-repo branches fire both push and pull_request; only build once.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    outputs:
+      build-name: ${{ steps.build-name.outputs.name }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -94,6 +100,10 @@ jobs:
             -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build/ninja-release --parallel $(nproc)
+
+      - name: Read build name
+        id: build-name
+        run: echo "name=$(sed -n 's/^PROJECT_BUILD_NAME:STRING=//p' build/ninja-release/CMakeCache.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Create AppImage
         run: |
